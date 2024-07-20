@@ -1,0 +1,128 @@
+version: "3"
+
+services:
+
+  userdb:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${USERDB_USER}
+      POSTGRES_PASSWORD: ${USERDB_PASSWORD}
+      POSTGRES_DB: ${USERDB_DB} 
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db-data/postgres:/var/lib/postgresql/data
+
+  mongoConfig:
+    image: 'mongo:4.2.16-bionic'
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: configdb
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./db-data/mongoConfig/:/data/db
+
+  mongoFileConfig:
+    image: 'mongo:4.2.16-bionic'
+    ports:
+      - "27019:27017"
+    environment:
+      MONGO_INITDB_DATABASE: fileConfigDb
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./db-data/mongoFileConfig/:/data/db
+
+  authentication-service:
+    build:
+      context: ./authentication-service
+      dockerfile: authentication-service.dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DSN: "postgresql://postgres:password@userdb/users"
+      PORT: 3000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+  
+  broker-service:
+    build:
+      context: ./broker-service
+      dockerfile: broker-service.dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+  
+  config-service:
+    build:
+      context: ./config-service
+      dockerfile: config-service.dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      DSN: "mongodb://mongoConfig:27017"
+      DB_NAME: "configdb"
+      DB_USER: "admin"
+      DB_PASSWORD: "password"
+
+  file-config-service:
+    build:
+      context: ./file-config-service
+      dockerfile: file-config-service.dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      DSN: "mongodb://mongoFileConfig:27017"
+      DB_NAME: "fileConfigDb"
+      DB_USER: "admin"
+      DB_PASSWORD: "password"
+
+  monitoring-service:
+    build:
+      context: ./monitoring-service
+      dockerfile: monitoring-service.dockerfile
+    ports:
+      - "3004:3004"
+    volumes:
+      - prometheus-config:/etc/prometheus
+      - ./file_sd:/etc/prometheus/file_sd
+      - ./dashboards:/etc/prometheus/dashboards
+    environment:
+      PORT: 3004
+      TARGETS_FILE_PATH: /etc/prometheus/file_sd/postgres-targets.json
+      POSTGRES_DASHBOARD_FILE_PATH: /etc/prometheus/dashboards/postgres-dashboard-template.json
+
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-config:/etc/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./file_sd:/etc/prometheus/file_sd
+      - ./dashboards:/etc/prometheus/dashboards
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3005:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+volumes:
+  prometheus-config:

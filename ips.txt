@@ -1,0 +1,21 @@
+Central US = 192.168.1.11 - Lenovo - node service
+East Asia = 192.168.1.4 - HP - node service
+
+VM = 192.168.1.50
+Thinkpad = 192.168.1.10
+
+SERVICES:
+
+node-service: 192.168.1.11:3000 / 192.168.1.4:3000
+
+broker-service: 192.168.1.50:3001
+config-service: 192.168.1.50:3002
+authentication-service: 192.168.1.50:3000
+file-config-service: 192.168.1.50:3003
+mail-service: 192.168.1.50:3004
+
+redis: 192.168.1.50:6379
+
+pubsub-service: 192.168.1.10:3000
+rabbit: 192.168.1.10:5672
+file-service: 192.168.1.10:3001
